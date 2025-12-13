@@ -1,0 +1,88 @@
+import re
+import pandas as pd
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ===============================
+# 1. 이 파이썬 파일 위치 기준
+# ===============================
+BASE_DIR = Path(__file__).resolve().parent
+files = sorted(BASE_DIR.glob("dgree*.txt"))
+
+print(f"찾은 파일 개수: {len(files)}")
+for f in files:
+    print(" -", f.name)
+
+results = []
+
+# ===============================
+# 2. 파일 하나씩 처리
+# ===============================
+for file in files:
+    aoa = float(re.findall(r"\d+", file.name)[0])
+
+    rows = []
+
+    with open(file, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            if "|" in line and "CL" not in line and "---" not in line:
+                parts = [p.strip() for p in line.split("|") if p.strip()]
+
+                if len(parts) >= 7:
+                    try:
+                        CL  = float(parts[-3])
+                        CD  = float(parts[-2])
+                        CMz = float(parts[-1])
+                        rows.append([CL, CD, CMz])
+                    except:
+                        pass
+
+    if not rows:
+        print(f"⚠ 데이터 추출 실패: {file.name}")
+        continue
+
+    # 마지막 iteration = 수렴값
+    CL, CD, CMz = rows[-1]
+    results.append([aoa, CL, CD, CMz])
+
+# ===============================
+# 3. 결과 정리
+# ===============================
+df = pd.DataFrame(results, columns=["AOA", "CL", "CD", "CM"])
+# SU2 CMz → 논문 기준 CM (nose-up 양의 방향)
+df["CM"] = -df["CM"]
+df = df.sort_values("AOA")
+
+print("\n=== 최종 결과 ===")
+print(df)
+
+# ===============================
+# 4. 그래프들
+# ===============================
+
+# ---- AOA vs CL ----
+plt.figure()
+plt.plot(df["AOA"], df["CL"], marker="o")
+plt.xlabel("AOA [deg]")
+plt.ylabel("CL")
+plt.title("AOA vs CL")
+plt.grid()
+plt.show()
+
+# ---- AOA vs CD ----
+plt.figure()
+plt.plot(df["AOA"], df["CD"], marker="o")
+plt.xlabel("AOA [deg]")
+plt.ylabel("CD")
+plt.title("AOA vs CD")
+plt.grid()
+plt.show()
+
+# ---- AOA vs CM ----
+plt.figure()
+plt.plot(df["AOA"], df["CM"], marker="o")
+plt.xlabel("AOA [deg]")
+plt.ylabel("CM")
+plt.title("AOA vs CM")
+plt.grid()
+plt.show()
